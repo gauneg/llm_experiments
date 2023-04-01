@@ -85,6 +85,4 @@ the labels were found.
 Idea:
 To boost the F1 score, we take the sentences that were unlabelled and rank then
 in the order of decreasing semantic similarity with the sentence.
-
-
 """
