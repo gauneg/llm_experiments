@@ -1,6 +1,7 @@
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 import torch
 import ast
+from prompts import prompt_dict
 
 class AspectDataset(torch.utils.data.Dataset):
     def __init__(self, input_data, tokenizer):
@@ -8,7 +9,10 @@ class AspectDataset(torch.utils.data.Dataset):
         self.tokenizer = tokenizer
         self.inputs = []
         self.targets = []
-
+        self.pol_map = {'pos': 'positive', 
+                        'neg': 'negative',
+                        'neu': 'neutral',
+                        'con': 'conflict'}
         self._build()
 
     def __len__(self):
@@ -27,8 +31,8 @@ class AspectDataset(torch.utils.data.Dataset):
         for idx in range(len(self.data)):
             input_text, aspect_term, aspect_polarity = self.data[idx]
             
-            input_ = f'aspect term:{aspect_term} sentence: {input_text} </s>'
-            target = f"{aspect_polarity} </s>"
+            input_ = f"{prompt_dict['aspect_sentiment'](aspect_term, input_text)} </s>"
+            target = f"{self.pol_map[aspect_polarity]} </s>"
           
             tokenized_inputs = self.tokenizer(
                 [input_], padding="max_length", truncation=True, return_tensors="pt"

@@ -24,11 +24,11 @@ df = pd.read_csv('/home/gauneg/llm_experiments/training_data_original/train_op_p
 # In[3]:
 tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 model = AutoModelForSeq2SeqLM.from_pretrained(args.base_model)
-model_output = os.path.join(f'/home/gauneg/llm_experiments/models/aspect_polarity_prediction/{args.base_model}', args.train_key)
+model_output = os.path.join(f'/home/gauneg/llm_experiments/models/aspect_polarity_prediction/ft_{args.base_model}', args.train_key)
 training_args = TrainingArguments(
     output_dir=model_output,
     optim='adafactor',
-    num_train_epochs=16,
+    num_train_epochs=32,
     logging_strategy='steps',
     learning_rate=3e-4,
     logging_steps=100,
