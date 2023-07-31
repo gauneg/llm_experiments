@@ -1,5 +1,16 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+import argparse
+msg = "Training parameters"
+import numpy as np
+# Initialize parser
+parser = argparse.ArgumentParser(description = msg)
+parser.add_argument('--train_key', help='training key to use')
+parser.add_argument('--cuda', help='gpu device visible')
+args = parser.parse_args()
+print(f'Train Dataset: {args.train_key}')
+print(f'CUDA DEVICE: {args.cuda}')
+train_key = args.train_key
+os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda 
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 from bert_bio_dataloader import AspectBioDataset
 import pandas as pd
@@ -8,27 +19,31 @@ import torch
 from torch import cuda
 from sklearn.metrics import accuracy_score
 
+
+
 device = 'cuda' if cuda.is_available() else 'cpu'
 
+# df_twitter_train = pd.read_csv('/home/gauneg/llm_experiments/training_data_original/target_senti_twitter_ds.csv')
+# df_liu_2009 = pd.read_csv('/home/gauneg/llm_experiments/training_data_original/gadget_2009.csv')
+# df_liu_2015 = pd.read_csv('/home/gauneg/llm_experiments/training_data_original/gadget_2015.csv')
+df_twitter_train = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/train_aspect_term_edit.csv')
+
+datadict = {
+    'base_aspect_term': df_twitter_train.values,
+}
+
+train_data = datadict[train_key]
+
 tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-
-train_data_path = '/home/gauneg/llm_experiments/ds_for_generation/train_aspect_term_edit.csv'
-test_data_path1 = '/home/gauneg/llm_experiments/csv_test_sets/laptop_gold_2014.csv'
-test_data_path2 = '/home/gauneg/llm_experiments/csv_test_sets/restaurant_gold_2014.csv'
-
-train_data = pd.read_csv(train_data_path)
-test_data_lap = pd.read_csv(test_data_path1)
-test_data_res = pd.read_csv(test_data_path2)
-
-training_set = AspectBioDataset(train_data.values, tokenizer)
-test_set_lap = AspectBioDataset(test_data_lap.values, tokenizer)
-test_set_rest = AspectBioDataset(test_data_res.values, tokenizer)
+training_set = AspectBioDataset(train_data, tokenizer)
+# test_set_lap = AspectBioDataset(test_data_lap.values, tokenizer)
+# test_set_rest = AspectBioDataset(test_data_res.values, tokenizer)
 
 TRAIN_BATCH_SIZE = 8
 TEST_BATCH_SIZE = 8
 MAX_GRAD_NORM = 10
 LEARNING_RATE = 1e-05
-EPOCHS = 10
+EPOCHS = 32
 
 train_params = {
     'batch_size': TRAIN_BATCH_SIZE,
@@ -43,8 +58,8 @@ test_params = {
 }
 
 train_dataloader = DataLoader(training_set, **train_params)
-testing_dataloader_lap = DataLoader(test_set_lap, **test_params)
-testing_dataloader_rest = DataLoader(test_set_rest, **test_params)
+# testing_dataloader_lap = DataLoader(test_set_lap, **test_params)
+# testing_dataloader_rest = DataLoader(test_set_rest, **test_params)
 n_labs = len(training_set.labels_to_ids)
 model = AutoModelForTokenClassification.from_pretrained('bert-base-uncased', num_labels=n_labs)
 model.to(device)
@@ -109,8 +124,8 @@ def train(epoch):
 
 
 if __name__ == '__main__':
+
     for epoch in range(EPOCHS):
         print(f"Training epoch: {epoch + 1}")
         train(epoch)
-        if epoch>0 and epoch%3==0:
-            model.save_pretrained(f'/home/gauneg/llm_experiments/models/bio-bert-{epoch}')
+        model.save_pretrained(f'/home/gauneg/llm_experiments/models/bio-bert/{train_key}/checkpoint-{epoch}')

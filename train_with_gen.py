@@ -1,45 +1,49 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+import argparse
+msg = "Adding description"
+
+# Initialize parser
+parser = argparse.ArgumentParser(description = msg)
+parser.add_argument('--train_key', help='training key to use')
+parser.add_argument('--cuda', help='gpu device visible')
+parser.add_argument('--base_model', help='model to start training from')
+
+args = parser.parse_args()
+print(f'Train Dataset: {args.train_key}')
+print(f'CUDA DEVICE: {args.cuda}')
+# for key in datadict.keys(): 
+train_key = args.train_key
+
+os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda
 import torch
-from transformers import AutoTokenizer, AutoModel, AutoConfig, AutoModelForSeq2SeqLM, TrainingArguments, Trainer
+from transformers import AutoTokenizer, AutoModel, AutoConfig, AutoModelForSeq2SeqLM, TrainingArguments, Trainer, Adafactor
 from torch.utils.data import DataLoader
 from dataclasses import dataclass, field
 from data_loader_asp import get_dataset, DataLoaderGen
 import numpy as np
 import pandas as pd
+# import argparse
 from prompts import prompt_dict
 
+tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+model = AutoModelForSeq2SeqLM.from_pretrained(args.base_model)
 
-tokenizer = AutoTokenizer.from_pretrained('google/flan-t5-base', max_model_length=256)
-model = AutoModelForSeq2SeqLM.from_pretrained('google/flan-t5-base')
+df_laptop_relabel = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/relabelled.csv')
+df_laptop_1 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_13_dep.csv')
 
-
-df_pre_lab  =  pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/labelled.csv')
-df_new_lab_0 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_138_dep.csv')
-df_new_lab_1 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_344_dep.csv')
-df_new_lab_2 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_592_dep.csv')
-df_new_lab_3 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_901_dep.csv')
-df_new_lab_4 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_1226_dep.csv')
-df_new_lab_5 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_laptop/final_gen_combine/lab_1482_dep.csv')
-
+df_res_relabel = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_restaurant/final_gen_combine/relabelled.csv')
+df_res_1 = pd.read_csv('/home/gauneg/llm_experiments/ds_for_generation/selective_gen_restaurant/final_gen_combine/lab_21_dep.csv')
 
 datadict = {
-    'mean_0_sigma':np.vstack((df_pre_lab.values, df_new_lab_0.values)),
-    'mean_1_sigma':np.vstack((df_pre_lab.values, df_new_lab_1.values)),
-    'mean_2_sigma':np.vstack((df_pre_lab.values, df_new_lab_2.values)),
-    'mean_3_sigma':np.vstack((df_pre_lab.values, df_new_lab_3.values)),
-    'mean_4_sigma':np.vstack((df_pre_lab.values, df_new_lab_4.values)),
-    'mean_5_sigma':np.vstack((df_pre_lab.values, df_new_lab_5.values)),
+    # 'base_aspect_term': np.vstack((df_twitter_train.values, df_liu_2009.values, df_liu_2015.values)),
+    'laptop_0': np.vstack((df_laptop_relabel.values, df_laptop_1.values)),
+    'restaurant_0': np.vstack((df_res_relabel.values, df_res_1.values))
 }
 
-
 if __name__ == '__main__':
-    # for k, v in datadict.items():
-    #     print(k, v.shape)
-
-
-    train_key = 'mean_5_sigma'
-
+    
+    print(f'STARTING TRAINING ON:{args.cuda}, USING DS: {train_key}, BASE MODEL:{args.base_model}')
+    
     train_dataset = get_dataset(
     DataLoaderGen,
     datadict,
@@ -47,17 +51,20 @@ if __name__ == '__main__':
     type_path=train_key,
     prompt=prompt_dict['self_for_flan-t5']
     )
+
+    # optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-3)
                             
     training_args = TrainingArguments(
-        output_dir=f"./models/combined_gen_{train_key}_with_prompts",
+        output_dir=f"./models/select_expriments/{train_key}",
         optim='adafactor',
-        num_train_epochs=15,
+        num_train_epochs=32,
         logging_strategy='steps',
-        learning_rate=5e-5,
+        learning_rate=3e-4,
         logging_steps=100,
         save_strategy='epoch',
         per_device_train_batch_size=2,
-        gradient_accumulation_steps=4
+        gradient_accumulation_steps=4,
+        
     )
 
     class CustomTrainer(Trainer):
@@ -72,7 +79,8 @@ if __name__ == '__main__':
     trainer = CustomTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataset
+        train_dataset=train_dataset,
+        # optimizers=(optimizer, None)
     )
 
     trainer.train()

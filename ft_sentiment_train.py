@@ -19,24 +19,30 @@ import os
 os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda
 # In[2]:
 from transformers import AutoTokenizer, AutoModel, AutoConfig, AutoModelForSeq2SeqLM, TrainingArguments, Trainer
-df = pd.read_csv('/home/gauneg/llm_experiments/training_data_original/train_op_polarity.csv')
+
+data_dict = {
+   'laptop_pol_14': pd.read_csv('/home/gauneg/hester_letter/all_combined_ds/aspect_sentiment_polarity/laptop_2014/train.csv'),
+   'restaurant_pol_14': pd.read_csv('/home/gauneg/hester_letter/all_combined_ds/aspect_sentiment_polarity/restaurant_2014/train.csv'),
+   'twitter_senti': pd.read_csv('/home/gauneg/llm_experiments/training_data_original/train_op_polarity.csv')
+}
 
 # In[3]:
 tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 model = AutoModelForSeq2SeqLM.from_pretrained(args.base_model)
-model_output = os.path.join(f'/home/gauneg/llm_experiments/models/aspect_polarity_prediction/ft_{args.base_model}', args.train_key)
+
+model_output = os.path.join(f'/home/gauneg/llm_experiments/models/aspect_pol_prediction/twitter_ft_{args.base_model}', args.train_key)
 training_args = TrainingArguments(
     output_dir=model_output,
     optim='adafactor',
-    num_train_epochs=32,
+    num_train_epochs=8,
     logging_strategy='steps',
     learning_rate=3e-4,
     logging_steps=100,
     save_strategy='epoch',
-    per_device_train_batch_size=2,
-    gradient_accumulation_steps=4
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=8
 )
-train_dataset = AspectDataset(df.values, tokenizer)
+train_dataset = AspectDataset(data_dict[args.train_key].values, tokenizer)
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
       input_ids = inputs['input_ids']

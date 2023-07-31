@@ -12,8 +12,9 @@ class BIOTagGen:
         tk = self.tokenizer(phrase, max_length=512, padding='max_length')
 
         toks = self.tokenizer.convert_ids_to_tokens(tk['input_ids'])
-        # print(toks)
-        return toks, tk['input_ids'], tk['attention_mask']
+        conv_toks = [self.tokenizer.convert_tokens_to_string([tok]).strip().lower() for tok in toks]
+        # print(phrase, conv_toks)
+        return conv_toks, tk['input_ids'], tk['attention_mask']
 
     @staticmethod
     def filter_match(arr):
@@ -52,10 +53,10 @@ class BIOTagGen:
         lab_list = [self.sequence_matcher_pos_phrase(input_tokens_trunc, lab) for lab in list(unique_labs)]
         # print(unique_labs, lab_list)
         lab_list = [lab_seq for lab_seq in lab_list if self.filter_match(lab_seq)]
-        # print(unique_labs, lab_list)
-        # print(self.__class__.__name__, lab_list)
 
-        tags_sentence = [(word, 'O') if word not in ['[PAD]', '[SEP]', '[CLS]'] else (word, word) for word in input_tokens_trunc]
+        bert_special = ['[PAD]', '[SEP]', '[CLS]']
+        
+        tags_sentence = [(word, 'O') if word not in bert_special else (word, word) for word in input_tokens_trunc]
         if labelling_scheme == 'bio':
             for lab_seq in lab_list:
                 for i, lab_index in enumerate(lab_seq):
@@ -66,6 +67,33 @@ class BIOTagGen:
                         tags_sentence[lab_index] = (tags_sentence[lab_index][0], "I")
         return [tag for word, tag in tags_sentence], tk_input_ids, tk_input_attention_mask
 
+
+class BIOTagGenBPE(BIOTagGen):
+    def __init__(self, pre_trained_tokenizer):
+        super(BIOTagGenBPE, self).__init__(pre_trained_tokenizer)
+
+    def prepare_seq_lab_one(self, text_inp: str, lab_phrases: list, labelling_scheme='bio'):
+        """
+        Labels
+        """
+        input_tokens_trunc,  tk_input_ids, tk_input_attention_mask = self.tokenizer_with_torch(text_inp)
+        unique_labs = set(lab_phrases)
+        lab_list = [self.sequence_matcher_pos_phrase(input_tokens_trunc, f' {lab}') for lab in list(unique_labs)]
+        print('lab_list', len(lab_list), lab_list)
+        lab_list = [lab_seq for lab_seq in lab_list if self.filter_match(lab_seq)]
+        
+        bpe_special = ['<pad>', '<s>', '</s>']
+        tags_sentence = [(word, 'O') if word not in bpe_special else (word, word) for word in input_tokens_trunc]
+
+        if labelling_scheme == 'bio':
+            for lab_seq in lab_list:
+                for i, lab_index in enumerate(lab_seq):
+                    # print(lab_index)
+                    if i == 0:
+                        tags_sentence[lab_index] = (tags_sentence[lab_index][0], "B")
+                    else:
+                        tags_sentence[lab_index] = (tags_sentence[lab_index][0], "I")
+        return [tag for word, tag in tags_sentence], tk_input_ids, tk_input_attention_mask
 
 if __name__ == '__main__':
     import pandas as pd

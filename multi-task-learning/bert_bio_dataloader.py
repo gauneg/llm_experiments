@@ -1,23 +1,36 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
-from dataloader_helper import BIOTagGen
+from dataloader_helper import BIOTagGen, BIOTagGenBPE
 import ast
+from infer_bert_token_classification import get_labs_from_bio
 
 
 class AspectBioDataset(Dataset):
     def __init__(self, input_dataset, tokenizer):
         self.data = input_dataset
         self.tokenizer = tokenizer
+        
+        # for BERT
+        # self.labels_to_ids = {
+        #     'B': 1,
+        #     'I': 2,
+        #     'O': 0,
+        #     '[PAD]': -100,
+        #     '[SEP]': -100,
+        #     '[CLS]': -100
+        # }
+        
+        # for  xlm-RoBERTa
         self.labels_to_ids = {
             'B': 1,
             'I': 2,
             'O': 0,
-            '[PAD]': -100,
-            '[SEP]': -100,
-            '[CLS]': -100
+            '<pad>':-100,
+            '<s>':-100,
+            '</s>':-100
         }
         self.ids_to_labels = {v: k for k, v in self.labels_to_ids.items()}
-        self.bio_gen = BIOTagGen(tokenizer)
+        self.bio_gen = BIOTagGenBPE(tokenizer)
         self.encoded_data = []
         self._build()
 
@@ -49,16 +62,22 @@ if __name__ == '__main__':
     from transformers import AutoTokenizer
     import pandas as pd
 
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    # tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    tokenizer = AutoTokenizer.from_pretrained('roberta-base')
 
-    GOLD_LAPTOP = '/Users/gauneg/datasets/aspect_mining/aspect_mine_review/csv_test_sets/laptop_gold_2014.csv'
-    GOLD_RESTAURANT = '/Users/gauneg/datasets/aspect_mining/aspect_mine_review/csv_test_sets/restaurant_gold_2014.csv'
-
-    df = pd.read_csv(GOLD_LAPTOP)
+    GOLD_LAPTOP = '/home/gauneg/llm_experiments/csv_test_sets/laptop_gold_2014.csv'
+    GOLD_RESTAURANT = '/home/gauneg/llm_experiments/csv_test_sets/restaurant_gold_2014.csv'
+    TEST_LABS = '/home/gauneg/llm_experiments/csv_test_sets/labelling_test.csv'
+    df = pd.read_csv(TEST_LABS)
 
     asp_bio = AspectBioDataset(df.values, tokenizer)
-
-    # for data in asp_bio:
-    #     print(data)
-    #     break
-    print(asp_bio[0])
+    with open('/home/gauneg/llm_experiments/model_pred_logs/text_file.txt', 'w') as f:
+        for i, data in enumerate(asp_bio):
+            inx = data['input_ids']
+            labx = data['labels']
+            toks = tokenizer.convert_ids_to_tokens(inx)
+            f.write(f'input {i}: {inx}')
+            f.write(f'labs  {i}: {labx}')
+            f.write(f'toks  {i}: {toks}')
+            
+    # print(asp_bio[0])

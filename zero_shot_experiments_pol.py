@@ -33,12 +33,12 @@ def convert_ids_text(id_arr, tokenizer):
 
 LAPTOP_GOLD_PATH = '/home/gauneg/hester_letter/all_combined_ds/aspect_sentiment_polarity/laptop_2014/test.csv'
 RESTAURANT_GOLD_PATH = '/home/gauneg/hester_letter/all_combined_ds/aspect_sentiment_polarity/restaurant_2014/test.csv'
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 df_lap = pd.read_csv(LAPTOP_GOLD_PATH)
 df_res = pd.read_csv(RESTAURANT_GOLD_PATH)
 
 
-tokenizer = AutoTokenizer.from_pretrained(f'google/flan-t5-{mod_size}')
+tokenizer = AutoTokenizer.from_pretrained(f'google/flan-t5-small')
 datadict = {
     "laptop_gold": DataLoader(AspectDataset(df_lap.values, tokenizer), batch_size=BATCH_SIZE), 
     "restaurant_gold":  DataLoader(AspectDataset(df_res.values, tokenizer), batch_size=BATCH_SIZE)
@@ -80,7 +80,8 @@ if __name__ == '__main__':
     #         f.write('\n')
     
 
-    model_dir = f'/home/gauneg/llm_experiments/models/aspect_polarity_prediction/ft_google/flan-t5-{mod_size}/twitter_gadget_{mod_size}'
+    model_dir = f'/home/gauneg/llm_experiments/models/aspect_pol_prediction/twitter_gadget_small'
+
     
     for k, dloader in datadict.items():
         metric_arr = []
@@ -92,10 +93,13 @@ if __name__ == '__main__':
                 metric_arr.append([mod, 
                                 precision_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='weighted'), 
                                 recall_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='weighted'), 
-                                f1_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='weighted')
+                                f1_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='weighted'),
+                                precision_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='macro'),
+                                recall_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='macro'), 
+                                f1_score(df_res['true_y'], df_res['pred_y'], zero_division=0, average='macro'),
                                 ])
-        df_scores = pd.DataFrame(metric_arr, columns=['checkpoint', 'precision', 'recall', 'f1'])
-        df_scores.to_csv(f'/home/gauneg/llm_experiments/model_run_logs/polarity_only_res/{mod_size}_{k}.csv', index=False)
+        df_scores = pd.DataFrame(metric_arr, columns=['checkpoint', 'precision_w', 'recall_w', 'f1_w', 'precision_m', 'recall_m', 'f1_m'])
+        df_scores.to_csv(f'/home/gauneg/llm_experiments/model_run_logs/polarity_only_res/final_tl_pol/twitter_gadget_{mod_size}_{k}.csv', index=False)
 
                 
 

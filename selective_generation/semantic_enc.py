@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 
 from transformers import AutoTokenizer, AutoModel
 import torch
@@ -16,7 +16,7 @@ class PhraseEncoder:
         self.model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
         self.model.to(self.device)
         self.avg_rep = None
-        self.cosine_calc = lambda a,b: np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b))
+        self.cosine_calc = lambda a,b: np.abs(np.dot(a, b)/(np.linalg.norm(a)*np.linalg.norm(b)))
 
 
     @staticmethod
@@ -35,11 +35,11 @@ class PhraseEncoder:
         # return {sentence_list[i]: representation_arr[i] for i in range(representation_arr.shape[0])}
         return np.array(sentence_list), representation_arr
     
-    def get_batch_gen(self, df, batch_size):
+    def get_batch_gen(self, arr, batch_size):
     
         batch_comp = []
-
-        for text, values in df.values:
+        
+        for text in arr:
             batch_comp.append(text)
 
             if len(batch_comp)==batch_size:
@@ -49,17 +49,16 @@ class PhraseEncoder:
         if len(batch_comp)>0:
             yield batch_comp
     
-    def encode_all(self, df):
-        text_infer_seq = []
+    def pre_calc_average(self, arr):
+        # text_infer_seq = []
         representaion_seq = []
-        lab_enc = self.get_batch_gen(df, 64)
+        lab_enc = self.get_batch_gen(arr, 64)
         for batch in tqdm(lab_enc):
             text, rep = self.encode_sentences(batch)
-            text_infer_seq += text.tolist()
+            # text_infer_seq += text.tolist()
             representaion_seq.append(rep.cpu().detach().numpy())
         all_reps = np.vstack(representaion_seq)
         self.avg_rep = all_reps.mean(axis=0)
-        return all_reps
     
     def calculate_cosine_sim_avg(self, text):
         sentence_rep = self.encode_sentences([text])[-1].cpu().detach().numpy()
