@@ -2,20 +2,20 @@ import pandas as pd
 import csv
 import os
 import torch
-FILE_PATH = '/home/gauneg/llm_experiments/ds_for_generation/train_aspect_term.csv'
+#FILE_PATH = '/home/gauneg/llm_experiments/ds_for_generation/train_aspect_term.csv'
 import ast
 
 
-dataset =  pd.read_csv(FILE_PATH).sample(frac=1).reset_index(drop=True)
+#dataset =  pd.read_csv(FILE_PATH).sample(frac=1).reset_index(drop=True)
 # asp_dset = AspectDataset(dataset,tokenizer)
-dataset = dataset.values
-val_split = 0.2
+#dataset = dataset.values
+#val_split = 0.2
 
-INDEX_SPLIT = dataset.shape[0] - int(val_split * dataset.shape[0])
-TRAIN_DATASET = dataset[:INDEX_SPLIT, :]
-VALID_DATASET = dataset[INDEX_SPLIT:, :]
+#INDEX_SPLIT = dataset.shape[0] - int(val_split * dataset.shape[0])
+#TRAIN_DATASET = dataset[:INDEX_SPLIT, :]
+#VALID_DATASET = dataset[INDEX_SPLIT:, :]
 
-datadict = {"train": TRAIN_DATASET, "validation": VALID_DATASET}
+#datadict = {"train": TRAIN_DATASET, "validation": VALID_DATASET}
 
 class AspectDataset(torch.utils.data.Dataset):
     def __init__(self, input_data, tokenizer, max_len=512, prompt=""):#, max_len=128) -> None:

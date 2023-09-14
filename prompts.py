@@ -5,5 +5,9 @@ Now complete the following example-
 input: """,
     
     'self_for_flan-t5': """Extract aspect terms from the following input. input: 
-    """
+    """,
+    'aspect_sentiment': lambda aspect_term, sentence: f"""Given the aspect term and the sentence. Predict if the aspect term in the sentence has a positive, negative or neutral sentiment expressed on it.
+aspect term: {aspect_term}
+sentence: {sentence} """
+
 }
